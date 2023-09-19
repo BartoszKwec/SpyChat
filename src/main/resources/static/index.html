@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tajny Chat Szpiegów</title>
+    <style>
+        /* Styl dla całej strony */
+        body {
+            background-color: #333;
+            color: #fff;
+            font-family: Arial, sans-serif;
+            margin: 0;
+            overflow: hidden;
+        }
+
+        /* Styl dla kontenera chatu */
+        #chat-container {
+            width: 500px;
+            height: 700px;
+            border: 1px solid #000;
+            margin: 0 auto; /* Centrowanie chatu */
+            background-color: #333;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Styl dla nagłówka */
+        #chat-header {
+            background-color: #444;
+            padding: 10px;
+            text-align: center;
+        }
+
+        /* Styl dla okna czatu */
+        #chat-window {
+            flex-grow: 1;
+            border: 1px solid #000;
+            overflow-y: scroll;
+            padding: 10px;
+            background-color: #333;
+            display: flex;
+            flex-direction: column-reverse; /* Normalna kolejność wyświetlania wiadomości */
+        }
+
+        /* Styl dla suwaka */
+        #chat-window::-webkit-scrollbar {
+            width: 10px;
+        }
+
+        #chat-window::-webkit-scrollbar-thumb {
+            background-color: #000;
+        }
+
+        /* Styl dla wiadomości w czacie */
+        .message {
+            margin-bottom: 10px;
+            padding: 5px;
+            border: 1px solid #444;
+            background-color: #444;
+            color: #fff;
+            text-align: left;
+            padding: 10px;
+            border-radius: 10px;
+            max-width: 80%;
+            align-self: flex-start; /* Wiadomości od innych użytkowników po lewej stronie */
+        }
+
+        /* Styl dla własnych wiadomości */
+        .own-message {
+            background-color: #0074D9;
+            color: white;
+            align-self: flex-end; /* Twoje wiadomości po prawej stronie */
+        }
+
+        /* Styl dla pola do wprowadzania wiadomości */
+        #message-input {
+            width: 100%;
+            padding: 10px;
+            border: none;
+            border-top: 1px solid #444;
+            background-color: #333;
+            color: #fff;
+            border-radius: 0;
+        }
+
+        /* Styl dla przycisku do wysyłania wiadomości */
+        #sendButton {
+            background-color: #0074D9;
+            color: white;
+            padding: 10px;
+            border: none;
+            cursor: pointer;
+            border-radius: 0;
+        }
+
+        /* Styl dla sekcji wprowadzania wiadomości */
+        #message-input-section {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            background-color: #444;
+        }
+
+        /* Styl dla emotek */
+        #emoji-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            margin-top: 10px;
+        }
+
+        .emoji {
+            font-size: 20px;
+            cursor: pointer;
+        }
+
+        /* Styl dla stopki */
+        #footer {
+            background-color: #444;
+            padding: 10px;
+            text-align: center;
+            position: fixed;
+            bottom: 0;
+            width: 100%;
+        }
+
+        /* Styl dla okna łączenia się z aplikacją */
+        #connection-window {
+            width: 250px;
+            margin: 0 auto; /* Wyśrodkowanie */
+            padding: 10px;
+            background-color: #444;
+            border: 1px solid #000;
+            border-radius: 5px;
+        }
+
+        /* Styl dla formularza połączenia */
+        #connection-form {
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Styl dla przycisku połączenia */
+        #connect-button {
+            background-color: #0074D9;
+            color: white;
+            padding: 5px;
+            border: none;
+            cursor: pointer;
+            border-radius: 5px;
+            margin-top: 5px;
+        }
+
+        /* Styl dla wyboru koloru wiadomości */
+        #color-selector {
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+<div id="chat-container">
+    <div id="chat-header">Tajny Chat Szpiegów</div>
+    <div id="chat-window"></div>
+    <div id="message-input-section">
+        <input type="text" id="message-input" placeholder="Wpisz wiadomość...">
+        <button id="sendButton">Wyślij</button>
+    </div>
+    <div id="emoji-container">
+        <span class="emoji" onclick="insertEmoji('😀')">😀</span>
+        <span class="emoji" onclick="insertEmoji('😂')">😂</span>
+        <span class="emoji" onclick="insertEmoji('😍')">😍</span>
+        <span class="emoji" onclick="insertEmoji('👍')">👍</span>
+        <span class="emoji" onclick="insertEmoji('👋')">👋</span>
+    </div>
+</div>
+<div id="connection-window">
+    <h2>Połącz się z chatem</h2>
+    <form id="connection-form">
+        <label for="nickname">Twój nick:</label>
+        <input type="text" id="nickname" required>
+        <label for="color-selector">Kolor wiadomości:</label>
+        <input type="color" id="color-selector">
+        <button id="connect-button" type="button" onclick="connectWithBroker()">Połącz</button>
+    </form>
+</div>
+<div id="footer">
+    &copy; 2023 Chat Szpiegów | Utworzone dla zabawy
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.4.0/sockjs.min.js"></script>
+<script>
+    var stompClient;
+    var nick;
+    var color;
+
+    // Skrypt JavaScript do obsługi czatu
+    const chatWindow = document.getElementById('chat-window');
+    const messageInput = document.getElementById('message-input');
+    const sendButton = document.getElementById('sendButton');
+
+    // Ukryj okno połączenia po naciśnięciu przycisku "Połącz"
+    const connectionWindow = document.getElementById('connection-window');
+    const connectButton = document.getElementById('connect-button');
+    const nicknameInput = document.getElementById('nickname');
+    const colorSelector = document.getElementById('color-selector');
+
+    // Obsługa przycisku Enter w polu do wprowadzania wiadomości
+    messageInput.addEventListener('keyup', function (event) {
+        if (event.key === 'Enter') {
+            sendMessage();
+        }
+    });
+
+    // Obsługa przycisku do wysyłania wiadomości
+    sendButton.addEventListener('click', sendMessage);
+
+    // Funkcja do wysyłania wiadomości
+    function sendMessage() {
+        const messageText = document.getElementById('message-input').value;
+        const nick = document.getElementById('nickname').value;
+        var messageToSend = {
+            userName: nicknameInput.value,
+            message: messageText,
+            color: colorSelector.value
+        };
+        stompClient.send("/app/send-message", {}, JSON.stringify(messageToSend));
+        messageInput.value = '';
+        chatWindow.scrollTop = chatWindow.scrollHeight;
+    }
+
+    // Funkcja do wstawiania emotki
+    function insertEmoji(emoji) {
+        messageInput.value += emoji;
+    }
+
+    // Obsługa przycisku "Połącz"
+    connectButton.addEventListener('click', function () {
+        connectionWindow.style.display = 'none';
+    });
+
+    // Funkcja do nawiązywania połączenia z brokerem WebSocket
+    function connectWithBroker() {
+        nick = document.getElementById('nickname').value;
+        console.log(nick);
+        color = document.getElementById('color-selector').value;
+
+        var socket = new SockJS('/ws');
+        stompClient = Stomp.over(socket);
+        stompClient.connect({}, onConnect, onError);
+    }
+
+    // Funkcja wywoływana po nawiązaniu połączenia z brokerem
+    function onConnect() {
+        console.log('Połączono z brokerem');
+        stompClient.subscribe('/topic/livechat', onMessage);
+    }
+
+    // Funkcja wywoływana w przypadku błędu połączenia
+    function onError(error) {
+        console.error('Błąd połączenia z brokerem:', error);
+    }
+
+    // Funkcja wywoływana przy otrzymaniu nowej wiadomości
+    function onMessage(payload) {
+        var message = JSON.parse(payload.body);
+        console.log('Odebrano wiadomość:', message);
+        displayMessage(message);
+    }
+
+    // Funkcja do wyświetlania wiadomości w oknie czatu
+    function displayMessage(message) {
+        const messageElement = document.createElement('div');
+        messageElement.classList.add('message');
+        messageElement.style.backgroundColor = message.color;
+        messageElement.textContent = message.userName+": "+message.message;
+        if (message.userName === nick) {
+            messageElement.classList.add('own-message'); // Twoje wiadomości po prawej
+        } else {
+            messageElement.classList.add('other-user-message'); // Wiadomości od innych po lewej
+        }
+        chatWindow.insertBefore(messageElement, chatWindow.firstChild);
+        chatWindow.scrollTop = chatWindow.scrollHeight;
+    }
+</script>
+</body>
+</html>
